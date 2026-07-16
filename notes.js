@@ -264,3 +264,368 @@ function ComponentUsingMultipleContexts() {
 }
 
 // This is how Context API works with useState to share data across your entire application!
+
+
+
+
+
+// ============================================
+// PREVENTING MULTIPLE RE-RENDERS USING useEffect
+// ============================================
+
+// WHAT IS THE PROBLEM?
+// When using Context API with useState, every time the context value changes,
+// ALL components that consume that context will re-render, even if they don't use
+// the specific piece of data that changed. This can cause performance issues.
+
+// SOLUTION: Use useEffect hook to control when components should update
+// and prevent unnecessary re-renders.
+
+// ============================================
+// EXAMPLE 1: PROBLEM - MULTIPLE UNNECESSARY RE-RENDERS
+// ============================================
+
+import React, { createContext, useState, useContext, useEffect, useRef, memo } from 'react';
+
+const DataContext = createContext();
+
+function DataProvider({ children }) {
+  const [name, setName] = useState("John");
+  const [age, setAge] = useState(25);
+  const [email, setEmail] = useState("john@example.com");
+
+  return (
+    <DataContext.Provider value={{ name, setName, age, setAge, email, setEmail }}>
+      {children}
+    </DataContext.Provider>
+  );
+}
+
+// This component only uses 'name' but will re-render when age or email changes too
+function NameDisplay() {
+  const { name } = useContext(DataContext);
+  
+  // This will log every time ANY context value changes
+  console.log("NameDisplay re-rendered");
+  
+  return <h2>Name: {name}</h2>;
+}
+
+// ============================================
+// SOLUTION 1: USING useEffect TO TRACK SPECIFIC CHANGES
+// ============================================
+
+function OptimizedNameDisplay() {
+  const { name } = useContext(DataContext);
+  const [displayName, setDisplayName] = useState(name);
+  
+  // useEffect with dependency array - only runs when 'name' changes
+  useEffect(() => {
+    console.log("Name changed, updating display");
+    setDisplayName(name);
+  }, [name]); // Only re-run when 'name' changes, not age or email
+  
+  return <h2>Name: {displayName}</h2>;
+}
+
+// ============================================
+// SOLUTION 2: USING useRef TO PREVENT UNNECESSARY EFFECTS
+// ============================================
+
+function SmartComponent() {
+  const { name, age, email } = useContext(DataContext);
+  const previousName = useRef(name);
+  
+  useEffect(() => {
+    // Only execute logic if name actually changed
+    if (previousName.current !== name) {
+      console.log("Name changed from", previousName.current, "to", name);
+      // Perform expensive operations only when name changes
+      previousName.current = name;
+    }
+  }, [name]);
+  
+  return (
+    <div>
+      <p>Name: {name}</p>
+      <p>Age: {age}</p>
+    </div>
+  );
+}
+
+// ============================================
+// SOLUTION 3: SPLITTING CONTEXTS TO REDUCE RE-RENDERS
+// ============================================
+
+// Instead of one large context, create separate contexts for different data
+const NameContext = createContext();
+const AgeContext = createContext();
+const EmailContext = createContext();
+
+function SplitContextProviders({ children }) {
+  const [name, setName] = useState("John");
+  const [age, setAge] = useState(25);
+  const [email, setEmail] = useState("john@example.com");
+
+  return (
+    <NameContext.Provider value={{ name, setName }}>
+      <AgeContext.Provider value={{ age, setAge }}>
+        <EmailContext.Provider value={{ email, setEmail }}>
+          {children}
+        </EmailContext.Provider>
+      </AgeContext.Provider>
+    </NameContext.Provider>
+  );
+}
+
+// Now this component only re-renders when name changes
+function OnlyNameComponent() {
+  const { name } = useContext(NameContext);
+  
+  useEffect(() => {
+    console.log("OnlyNameComponent rendered - name changed");
+  }, [name]);
+  
+  return <h2>Name: {name}</h2>;
+}
+
+// This component only re-renders when age changes
+function OnlyAgeComponent() {
+  const { age } = useContext(AgeContext);
+  
+  useEffect(() => {
+    console.log("OnlyAgeComponent rendered - age changed");
+  }, [age]);
+  
+  return <h2>Age: {age}</h2>;
+}
+
+// ============================================
+// SOLUTION 4: USING React.memo TO PREVENT RE-RENDERS
+// ============================================
+
+// React.memo prevents re-renders if props haven't changed
+const MemoizedComponent = memo(function DisplayInfo({ name, age }) {
+  useEffect(() => {
+    console.log("MemoizedComponent rendered");
+  });
+  
+  return (
+    <div>
+      <p>Name: {name}</p>
+      <p>Age: {age}</p>
+    </div>
+  );
+});
+
+// ============================================
+// SOLUTION 5: DEBOUNCING WITH useEffect
+// ============================================
+
+function SearchComponent() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [results, setResults] = useState([]);
+  
+  // useEffect with cleanup to debounce API calls
+  useEffect(() => {
+    // Don't search if term is empty
+    if (!searchTerm) {
+      setResults([]);
+      return;
+    }
+    
+    // Set a timer to delay the search
+    const timeoutId = setTimeout(() => {
+      console.log("Searching for:", searchTerm);
+      // Simulate API call
+      fetchSearchResults(searchTerm).then(data => setResults(data));
+    }, 500); // Wait 500ms after user stops typing
+    
+    // Cleanup function - cancels previous timer if user keeps typing
+    return () => {
+      clearTimeout(timeoutId);
+      console.log("Cancelled previous search");
+    };
+  }, [searchTerm]); // Only run when searchTerm changes
+  
+  return (
+    <div>
+      <input 
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Search..."
+      />
+      <ul>
+        {results.map(result => <li key={result.id}>{result.name}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+// Simulated API call
+function fetchSearchResults(term) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve([
+        { id: 1, name: `Result for ${term} - 1` },
+        { id: 2, name: `Result for ${term} - 2` }
+      ]);
+    }, 300);
+  });
+}
+
+// ============================================
+// SOLUTION 6: CONDITIONAL EFFECTS
+// ============================================
+
+function ConditionalEffectComponent() {
+  const { name, age, email } = useContext(DataContext);
+  const [shouldUpdate, setShouldUpdate] = useState(true);
+  
+  useEffect(() => {
+    // Only run effect if shouldUpdate is true
+    if (shouldUpdate) {
+      console.log("Effect running - data updated");
+      // Perform operations
+    }
+  }, [name, age, email, shouldUpdate]);
+  
+  return (
+    <div>
+      <p>Name: {name}, Age: {age}</p>
+      <button onClick={() => setShouldUpdate(!shouldUpdate)}>
+        Toggle Updates: {shouldUpdate ? "ON" : "OFF"}
+      </button>
+    </div>
+  );
+}
+
+// ============================================
+// SOLUTION 7: USING useCallback TO PREVENT FUNCTION RE-CREATION
+// ============================================
+
+import { useCallback } from 'react';
+
+function ParentWithCallback() {
+  const [count, setCount] = useState(0);
+  const [name, setName] = useState("John");
+  
+  // Without useCallback, this function is recreated on every render
+  // causing child components to re-render unnecessarily
+  
+  // With useCallback, function is only recreated when dependencies change
+  const handleIncrement = useCallback(() => {
+    setCount(prevCount => prevCount + 1);
+  }, []); // Empty array means function never changes
+  
+  const handleNameChange = useCallback((newName) => {
+    setName(newName);
+  }, []); // Function doesn't depend on any values
+  
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <p>Name: {name}</p>
+      <MemoizedButton onClick={handleIncrement} label="Increment" />
+      <MemoizedInput onChange={handleNameChange} />
+    </div>
+  );
+}
+
+const MemoizedButton = memo(function Button({ onClick, label }) {
+  useEffect(() => {
+    console.log("Button rendered");
+  });
+  
+  return <button onClick={onClick}>{label}</button>;
+});
+
+const MemoizedInput = memo(function Input({ onChange }) {
+  useEffect(() => {
+    console.log("Input rendered");
+  });
+  
+  return <input onChange={(e) => onChange(e.target.value)} />;
+});
+
+// ============================================
+// COMPLETE EXAMPLE: OPTIMIZED CONTEXT WITH ALL TECHNIQUES
+// ============================================
+
+const OptimizedContext = createContext();
+
+function OptimizedProvider({ children }) {
+  const [user, setUser] = useState({ name: "John", age: 25 });
+  const [settings, setSettings] = useState({ theme: "light", language: "en" });
+  
+  // Use useCallback to prevent function recreation
+  const updateUser = useCallback((newUser) => {
+    setUser(prevUser => ({ ...prevUser, ...newUser }));
+  }, []);
+  
+  const updateSettings = useCallback((newSettings) => {
+    setSettings(prevSettings => ({ ...prevSettings, ...newSettings }));
+  }, []);
+  
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = React.useMemo(() => ({
+    user,
+    settings,
+    updateUser,
+    updateSettings
+  }), [user, settings, updateUser, updateSettings]);
+  
+  return (
+    <OptimizedContext.Provider value={contextValue}>
+      {children}
+    </OptimizedContext.Provider>
+  );
+}
+
+function OptimizedConsumer() {
+  const { user, updateUser } = useContext(OptimizedContext);
+  const renderCount = useRef(0);
+  
+  useEffect(() => {
+    renderCount.current += 1;
+    console.log(`Component rendered ${renderCount.current} times`);
+  });
+  
+  // Only update when user clicks button, not on every render
+  const handleUpdate = useCallback(() => {
+    updateUser({ name: "Jane" });
+  }, [updateUser]);
+  
+  return (
+    <div>
+      <p>User: {user.name}, Age: {user.age}</p>
+      <p>Render count: {renderCount.current}</p>
+      <button onClick={handleUpdate}>Update Name</button>
+    </div>
+  );
+}
+
+// ============================================
+// KEY TAKEAWAYS
+// ============================================
+// 1. useEffect with dependency array - Only run effects when specific values change
+// 2. useRef - Track previous values without causing re-renders
+// 3. Split contexts - Separate data into multiple contexts
+// 4. React.memo - Prevent component re-renders if props haven't changed
+// 5. Debouncing - Delay expensive operations until user stops interacting
+// 6. Conditional effects - Only run effects when certain conditions are met
+// 7. useCallback - Prevent function recreation on every render
+// 8. useMemo - Memoize expensive calculations and context values
+// 9. Cleanup functions - Cancel timers, subscriptions, and pending operations
+// 10. Combine techniques - Use multiple optimization strategies together
+
+// ============================================
+// WHEN TO USE EACH TECHNIQUE
+// ============================================
+// - useEffect with dependencies: When you need to respond to specific state changes
+// - useRef: When you need to track values without triggering re-renders
+// - Split contexts: When you have unrelated data in one context
+// - React.memo: For expensive components that receive the same props often
+// - Debouncing: For search inputs, API calls, or expensive calculations
+// - useCallback: For functions passed as props to memoized components
+// - useMemo: For expensive calculations or to stabilize context values
