@@ -629,3 +629,569 @@ function OptimizedConsumer() {
 // - Debouncing: For search inputs, API calls, or expensive calculations
 // - useCallback: For functions passed as props to memoized components
 // - useMemo: For expensive calculations or to stabilize context values
+
+
+
+
+
+// ============================================
+// AXIOS - DETAILED NOTES & EXPLANATION
+// ============================================
+
+// WHAT IS AXIOS?
+// Axios is a popular JavaScript library used to make HTTP requests from the browser or Node.js
+// It's a promise-based HTTP client that makes it easy to send asynchronous HTTP requests to REST endpoints
+// and perform CRUD operations (Create, Read, Update, Delete)
+
+// WHY USE AXIOS INSTEAD OF FETCH?
+// - Automatic JSON data transformation
+// - Better error handling
+// - Request and response interceptors
+// - Request cancellation
+// - Timeout support
+// - CSRF protection
+// - Support for older browsers
+// - More readable syntax
+
+// ============================================
+// STEP 1: INSTALLATION
+// ============================================
+// Install axios in your React project using npm or yarn
+
+// Using npm:
+// npm install axios
+
+// Using yarn:
+// yarn add axios
+
+// ============================================
+// STEP 2: IMPORT AXIOS
+// ============================================
+// Import axios at the top of your component file
+
+import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+
+// ============================================
+// STEP 3: BASIC AXIOS SYNTAX
+// ============================================
+
+// GET REQUEST - Retrieve data from server
+axios.get('https://api.example.com/data')
+  .then(response => {
+    console.log(response.data); // Handle success
+  })
+  .catch(error => {
+    console.error(error); // Handle error
+  });
+
+// POST REQUEST - Send data to server
+axios.post('https://api.example.com/data', {
+    name: 'John',
+    age: 25
+  })
+  .then(response => {
+    console.log(response.data);
+  })
+  .catch(error => {
+    console.error(error);
+  });
+
+// PUT REQUEST - Update existing data
+axios.put('https://api.example.com/data/1', {
+    name: 'Jane',
+    age: 30
+  })
+  .then(response => {
+    console.log(response.data);
+  })
+  .catch(error => {
+    console.error(error);
+  });
+
+// DELETE REQUEST - Delete data from server
+axios.delete('https://api.example.com/data/1')
+  .then(response => {
+    console.log(response.data);
+  })
+  .catch(error => {
+    console.error(error);
+  });
+
+// ============================================
+// STEP 4: USING AXIOS WITH ASYNC/AWAIT (MODERN APPROACH)
+// ============================================
+
+// Async/await makes code cleaner and easier to read
+async function fetchData() {
+  try {
+    const response = await axios.get('https://api.example.com/data');
+    console.log(response.data);
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  }
+}
+
+// ============================================
+// STEP 5: AXIOS IN REACT COMPONENTS
+// ============================================
+
+// EXAMPLE 1: FETCHING DATA ON COMPONENT MOUNT
+function UserList() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Fetch data when component mounts
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('https://jsonplaceholder.typicode.com/users');
+        setUsers(response.data); // Store data in state
+        setLoading(false);
+      } catch (err) {
+        setError(err.message); // Store error message
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []); // Empty dependency array means this runs once on mount
+
+  // Conditional rendering based on state
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  return (
+    <div>
+      <h2>User List</h2>
+      <ul>
+        {users.map(user => (
+          <li key={user.id}>
+            {user.name} - {user.email}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ============================================
+// EXAMPLE 2: POST REQUEST - CREATING NEW DATA
+// ============================================
+
+function CreateUser() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent page reload
+
+    try {
+      // Send POST request with form data
+      const response = await axios.post('https://jsonplaceholder.typicode.com/users', {
+        name: name,
+        email: email
+      });
+
+      console.log('User created:', response.data);
+      setMessage('User created successfully!');
+      
+      // Clear form
+      setName('');
+      setEmail('');
+    } catch (error) {
+      console.error('Error creating user:', error);
+      setMessage('Failed to create user');
+    }
+  };
+
+  return (
+    <div>
+      <h2>Create New User</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button type="submit">Create User</button>
+      </form>
+      {message && <p>{message}</p>}
+    </div>
+  );
+}
+
+// ============================================
+// EXAMPLE 3: PUT REQUEST - UPDATING DATA
+// ============================================
+
+function UpdateUser({ userId }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Fetch existing user data first
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await axios.get(`https://jsonplaceholder.typicode.com/users/${userId}`);
+        setName(response.data.name);
+        setEmail(response.data.email);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+
+    fetchUser();
+  }, [userId]);
+
+  // Update user data
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await axios.put(`https://jsonplaceholder.typicode.com/users/${userId}`, {
+        name: name,
+        email: email
+      });
+
+      console.log('User updated:', response.data);
+      alert('User updated successfully!');
+      setLoading(false);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Failed to update user');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Update User</h2>
+      <form onSubmit={handleUpdate}>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? 'Updating...' : 'Update User'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ============================================
+// EXAMPLE 4: DELETE REQUEST - DELETING DATA
+// ============================================
+
+function DeleteUser({ userId, onDelete }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleDelete = async () => {
+    // Confirm before deleting
+    if (!window.confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await axios.delete(`https://jsonplaceholder.typicode.com/users/${userId}`);
+      console.log('User deleted successfully');
+      alert('User deleted!');
+      onDelete(userId); // Callback to update parent component
+      setLoading(false);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={handleDelete} disabled={loading}>
+      {loading ? 'Deleting...' : 'Delete User'}
+    </button>
+  );
+}
+
+// ============================================
+// EXAMPLE 5: AXIOS WITH HEADERS AND CONFIG
+// ============================================
+
+function FetchWithAuth() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Axios request with custom headers and configuration
+        const response = await axios.get('https://api.example.com/protected-data', {
+          headers: {
+            'Authorization': 'Bearer YOUR_TOKEN_HERE',
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000, // Request timeout in milliseconds
+          params: {
+            page: 1,
+            limit: 10
+          }
+        });
+
+        setData(response.data);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  return (
+    <div>
+      {data ? <pre>{JSON.stringify(data, null, 2)}</pre> : 'Loading...'}
+    </div>
+  );
+}
+
+// ============================================
+// EXAMPLE 6: CREATING AXIOS INSTANCE (BEST PRACTICE)
+// ============================================
+
+// Create a reusable axios instance with default configuration
+const api = axios.create({
+  baseURL: 'https://jsonplaceholder.typicode.com',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Add request interceptor (runs before every request)
+api.interceptors.request.use(
+  (config) => {
+    // Add auth token to every request
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    console.log('Request sent:', config);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor (runs after every response)
+api.interceptors.response.use(
+  (response) => {
+    console.log('Response received:', response);
+    return response;
+  },
+  (error) => {
+    // Handle errors globally
+    if (error.response?.status === 401) {
+      console.log('Unauthorized - redirecting to login');
+      // Redirect to login page
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Now use the api instance instead of axios
+function UsersWithInstance() {
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        // No need to specify full URL, baseURL is already set
+        const response = await api.get('/users');
+        setUsers(response.data);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  return (
+    <ul>
+      {users.map(user => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+
+// ============================================
+// EXAMPLE 7: HANDLING MULTIPLE REQUESTS
+// ============================================
+
+function MultipleRequests() {
+  const [users, setUsers] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        // Make multiple requests simultaneously
+        const [usersResponse, postsResponse] = await Promise.all([
+          axios.get('https://jsonplaceholder.typicode.com/users'),
+          axios.get('https://jsonplaceholder.typicode.com/posts')
+        ]);
+
+        setUsers(usersResponse.data);
+        setPosts(postsResponse.data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+
+  return (
+    <div>
+      <h2>Users: {users.length}</h2>
+      <h2>Posts: {posts.length}</h2>
+    </div>
+  );
+}
+
+// ============================================
+// EXAMPLE 8: CANCELING REQUESTS
+// ============================================
+
+function SearchWithCancel() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [results, setResults] = useState([]);
+
+  useEffect(() => {
+    // Create cancel token
+    const cancelToken = axios.CancelToken.source();
+
+    const searchUsers = async () => {
+      if (!searchTerm) {
+        setResults([]);
+        return;
+      }
+
+      try {
+        const response = await axios.get('https://jsonplaceholder.typicode.com/users', {
+          params: { q: searchTerm },
+          cancelToken: cancelToken.token // Attach cancel token
+        });
+        setResults(response.data);
+      } catch (error) {
+        if (axios.isCancel(error)) {
+          console.log('Request canceled:', error.message);
+        } else {
+          console.error('Error:', error);
+        }
+      }
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(searchUsers, 500);
+
+    // Cleanup function - cancel request if component unmounts or searchTerm changes
+    return () => {
+      clearTimeout(timeoutId);
+      cancelToken.cancel('Request canceled by user');
+    };
+  }, [searchTerm]);
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Search users..."
+      />
+      <ul>
+        {results.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ============================================
+// EXAMPLE 9: COMPLETE CRUD APPLICATION
+// ============================================
+
+function CompleteCRUDApp() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '' });
+  const [editingId, setEditingId] = useState(null);
+
+  // READ - Fetch all users
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get('https://jsonplaceholder.typicode.com/users');
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+    setLoading(false);
+  };
+
+  // CREATE - Add new user
+  const createUser = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post('https://jsonplaceholder.typicode.com/users', formData);
+      setUsers([...users, response.data]);
+      setFormData({ name: '', email: '' });
+      alert('User created!');
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
+  };
+
+
+  // UPDATE - Edit existing user
+const updateUser = async (e) => {
+  e.preventDefault();
+  try {
+    const response = await axios.put(`https://jsonplaceholder.typicode.com/users/${editingId}`, formData);
+    setUsers(users.map(user => user.id === editingId ? response.data : user));
+    setFormData({ name: '', email: '' });
+    setEditingId(null);
+    alert('User updated!');
+  } catch (error) {
+    console.error('Error updating user:', error);
+  }
+};
